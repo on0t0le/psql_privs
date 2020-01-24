@@ -101,7 +101,7 @@
         login_host: '127.0.0.1'
         db: library
         type: group
-        objs: reader
+        objs: writer
         roles: gman     
 
     # "The key word PUBLIC indicates that the privileges are to be granted to all
@@ -204,7 +204,7 @@
         privs: SELECT,INSERT,UPDATE,DELETE
         objs: ALL_IN_SCHEMA
         schema: public
-        roles: reader
+        roles: writer
 
     # Available since version 2.8
     # ALTER DEFAULT PRIVILEGES FOR ROLE admin IN SCHEMA library GRANT SELECT ON TABLES TO reader
