@@ -1,0 +1,129 @@
+- name: install postgres packages
+  apt:
+    name: python-psycopg2
+    state: present 
+    update_cache: yes
+
+- name: start and enable postgres stack
+  service:
+    name: postgresql
+    state: started
+    enabled: yes
+  
+- name: change listen address
+  blockinfile:
+    dest: /etc/postgresql/11/main/postgresql.conf
+    block: |      
+      listen_addresses = '*'
+  notify: restart postgres
+  
+- name: replace a localhost entry with our own
+  lineinfile:
+    path: /etc/postgresql/11/main/pg_hba.conf
+    regexp: '^host\s+all\s+all\s+127\.0\.0\.1'
+    line: 'host    all             all             127.0.0.1/32            trust'
+    owner: postgres
+    group: postgres
+    mode: 0640
+  notify: reload postgres
+
+### Run handlers
+- meta: flush_handlers
+
+- name: create replica user
+  postgresql_user:
+    login_host: '127.0.0.1'
+    name: "{{ replica.username }}"
+    password: "{{ replica.pwd }}"
+    role_attr_flags: LOGIN,REPLICATION
+  when: (slave is not defined)
+
+### Configuration
+- name: create roles
+  postgresql_user:    
+    login_host: '127.0.0.1'
+    name: "{{ item }}"    
+  with_items:
+    - writerrole
+    - readerrole
+  when: (slave is not defined)
+
+- name: Create user admin
+  postgresql_user:
+    login_host: '127.0.0.1'
+    name: "{{ admin.username }}"
+    password: "{{ admin.pwd }}"    
+  when: (slave is not defined)
+
+- name: Create user reader and grant readerrole
+  postgresql_user:
+    login_host: '127.0.0.1'
+    name: "{{ reader.username }}"
+    password: "{{ reader.pwd }}"
+    groups:
+    - readerrole
+  when: (slave is not defined)
+
+- name: Create user writer and grant writerrole
+  postgresql_user:
+    login_host: '127.0.0.1'
+    name: "{{ writer.username }}"
+    password: "{{ writer.pwd }}"
+    groups:
+    - writerrole
+  when: (slave is not defined)
+
+- name: create a new databases
+  postgresql_db:
+    login_host: '127.0.0.1'
+    name: "{{ admin.db }}"  
+    owner: "{{ admin.username }}"  
+  when: (slave is not defined)
+
+# Note that here "db: postgres" specifies the database to connect to, not the
+# database to grant privileges on (which is specified via the "objs" param)
+- name: GRANT CONNECT PRIVILEGES ON testdb TO reader-,writerrole
+  postgresql_privs:
+    login_host: '127.0.0.1'
+    db: "{{ admin.db }}"
+    privs: CONNECT
+    type: database
+    obj: "{{ admin.db }}"
+    role: readerrole,writerrole
+  when: (slave is not defined)
+
+# ALTER DEFAULT PRIVILEGES FOR ROLE admin IN SCHEMA public GRANT SELECT ON TABLES TO readerrole
+# GRANT SELECT privileges for new TABLES objects created by admin as
+# default to the role readerrole.
+- name: ALTER privs for reader
+  postgresql_privs:
+    login_host: '127.0.0.1'
+    db: "{{ admin.db }}"    
+    objs: TABLES
+    privs: SELECT
+    type: default_privs
+    role: readerrole
+    target_roles: "{{ admin.username }}"
+  when: (slave is not defined)
+
+- name: ALTER privs for writer
+  postgresql_privs:
+    login_host: '127.0.0.1'
+    db: "{{ admin.db }}"    
+    objs: TABLES
+    privs: ALL
+    type: default_privs
+    role: writerrole
+    target_roles: "{{ admin.username }}"
+  when: (slave is not defined)
+
+### HANDLERS
+- name: restart postgres
+  service:
+    name: postgresql
+    state: restarted
+
+- name: reload postgres
+  service:
+    name: postgresql
+    state: reloaded

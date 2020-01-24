@@ -1,0 +1,31 @@
+all:
+  vars:    
+    ansible_connection: 'ssh'
+    ansible_port: '6522'   
+    ansible_user: 'username'
+    ansible_password: 'somepwd'
+    ansible_become: true
+
+  children:
+    dbservers:
+      vars:        
+        admin:
+          username: 'admin'
+          pwd: 'Password1'
+          db: 'testdb'
+        reader:
+          username: 'reader'
+          pwd: 'Password2'
+        writer:
+          username: 'writer'
+          pwd: 'Password3'
+
+      children:
+        db_master:        
+
+    db_master:
+      hosts:
+        dbm:
+          ansible_host: '127.0.0.1'   
+              
+         
