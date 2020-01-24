@@ -1,0 +1,209 @@
+- hosts: dbservers
+
+  handlers:
+    - name: restart postgres
+      service:
+        name: postgresql
+        state: restarted
+
+    - name: reload postgres
+      service:
+        name: postgresql
+        state: reloaded
+
+  tasks:
+    - name: install postgres packages
+      apt:
+        name: python-psycopg2
+        state: present 
+        update_cache: yes
+
+    - name: start and enable postgres stack
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+      
+    - name: change listen address
+      blockinfile:
+        dest: /etc/postgresql/11/main/postgresql.conf
+        block: |      
+          listen_addresses = '*'
+      notify: restart postgres
+      
+    - name: replace a localhost entry with our own
+      lineinfile:
+        path: /etc/postgresql/11/main/pg_hba.conf
+        regexp: '^host\s+all\s+all\s+127\.0\.0\.1'
+        line: 'host    all             all             127.0.0.1/32            trust'
+        owner: postgres
+        group: postgres
+        mode: 0640
+      notify: reload postgres
+
+    ### Run handlers
+    - meta: flush_handlers
+
+    - name: create a new database
+      postgresql_db:
+        login_host: '127.0.0.1'
+        name: "testdb"
+
+    - name: Create user
+      postgresql_user:
+        login_host: '127.0.0.1'
+        name: librarian
+        password: 'Password1'
+
+    - name: GRANT ALL PRIVILEGES ON SCHEMA public TO librarian
+      postgresql_privs:
+        login_host: '127.0.0.1'
+        db: library
+        privs: ALL
+        type: schema
+        objs: public
+        role: librarian
+
+    # # Note the separation of arguments with colons.
+    # - name: GRANT ALL PRIVILEGES ON FUNCTION math.add(int, int) TO librarian, reader
+    #   postgresql_privs:
+    #     login_host: '127.0.0.1'
+    #     db: library
+    #     privs: ALL
+    #     type: function
+    #     obj: add(int:int)
+    #     schema: math
+    #     roles: librarian,reader
+
+    # # Note that group role memberships apply cluster-wide and therefore are not
+    # # restricted to database "library" here.
+    # - name: GRANT librarian, reader TO alice, bob WITH ADMIN OPTION
+    #   postgresql_privs:
+    #     login_host: '127.0.0.1'
+    #     db: library
+    #     type: group
+    #     objs: librarian,reader
+    #     roles: alice,bob
+    #     admin_option: yes
+
+    # # Note that here "db: postgres" specifies the database to connect to, not the
+    # # database to grant privileges on (which is specified via the "objs" param)
+    # - name: GRANT ALL PRIVILEGES ON DATABASE library TO librarian
+    #   postgresql_privs:
+    #     login_host: '127.0.0.1'
+    #     db: postgres
+    #     privs: ALL
+    #     type: database
+    #     obj: library
+    #     role: librarian
+
+    # # If objs is omitted for type "database", it defaults to the database
+    # # to which the connection is established
+    # - name: GRANT ALL PRIVILEGES ON DATABASE library TO librarian
+    #   postgresql_privs:
+    #     login_host: '127.0.0.1'
+    #     db: library
+    #     privs: ALL
+    #     type: database
+    #     role: librarian
+
+    # # Available since version 2.7
+    # # Objs must be set, ALL_DEFAULT to TABLES/SEQUENCES/TYPES/FUNCTIONS
+    # # ALL_DEFAULT works only with privs=ALL
+    # # For specific
+    # - name: ALTER DEFAULT PRIVILEGES ON DATABASE library TO librarian
+    #   postgresql_privs:
+    #     login_host: '127.0.0.1'
+    #     db: library
+    #     objs: ALL_DEFAULT
+    #     privs: ALL
+    #     type: default_privs
+    #     role: librarian
+    #     grant_option: yes
+
+    # # Available since version 2.7
+    # # Objs must be set, ALL_DEFAULT to TABLES/SEQUENCES/TYPES/FUNCTIONS
+    # # ALL_DEFAULT works only with privs=ALL
+    # # For specific
+    # - name: ALTER DEFAULT PRIVILEGES ON DATABASE library TO reader, step 1
+    #   postgresql_privs:
+    #     login_host: '127.0.0.1'
+    #     db: library
+    #     objs: TABLES,SEQUENCES
+    #     privs: SELECT
+    #     type: default_privs
+    #     role: reader
+
+    # - name: ALTER DEFAULT PRIVILEGES ON DATABASE library TO reader, step 2
+    #   postgresql_privs:
+    #     login_host: '127.0.0.1'
+    #     db: library
+    #     objs: TYPES
+    #     privs: USAGE
+    #     type: default_privs
+    #     role: reader
+
+    # # Available since version 2.8
+    # - name: GRANT ALL PRIVILEGES ON FOREIGN DATA WRAPPER fdw TO reader
+    #   postgresql_privs:
+    #     login_host: '127.0.0.1'
+    #     db: test
+    #     objs: fdw
+    #     privs: ALL
+    #     type: foreign_data_wrapper
+    #     role: reader
+
+    # # Available since version 2.8
+    # - name: GRANT ALL PRIVILEGES ON FOREIGN SERVER fdw_server TO reader
+    #   postgresql_privs:
+    #     login_host: '127.0.0.1'
+    #     db: test
+    #     objs: fdw_server
+    #     privs: ALL
+    #     type: foreign_server
+    #     role: reader
+
+    # # Available since version 2.8
+    # # Grant 'execute' permissions on all functions in schema 'common' to role 'caller'
+    # - name: GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA common TO caller
+    #   postgresql_privs:
+    #     login_host: '127.0.0.1'
+    #     type: function
+    #     state: present
+    #     privs: EXECUTE
+    #     roles: caller
+    #     objs: ALL_IN_SCHEMA
+    #     schema: common
+
+    # # Available since version 2.8
+    # # ALTER DEFAULT PRIVILEGES FOR ROLE librarian IN SCHEMA library GRANT SELECT ON TABLES TO reader
+    # # GRANT SELECT privileges for new TABLES objects created by librarian as
+    # # default to the role reader.
+    # # For specific
+    # - name: ALTER privs
+    #   postgresql_privs:
+    #     login_host: '127.0.0.1'
+    #     db: library
+    #     schema: library
+    #     objs: TABLES
+    #     privs: SELECT
+    #     type: default_privs
+    #     role: reader
+    #     target_roles: librarian
+
+    # # Available since version 2.8
+    # # ALTER DEFAULT PRIVILEGES FOR ROLE librarian IN SCHEMA library REVOKE SELECT ON TABLES FROM reader
+    # # REVOKE SELECT privileges for new TABLES objects created by librarian as
+    # # default from the role reader.
+    # # For specific
+    # - name: ALTER privs
+    #   postgresql_privs:
+    #     login_host: '127.0.0.1'
+    #     db: library
+    #     state: absent
+    #     schema: library
+    #     objs: TABLES
+    #     privs: SELECT
+    #     type: default_privs
+    #     role: reader
+    #     target_roles: librarian
