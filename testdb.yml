@@ -46,6 +46,7 @@
         path: /etc/network/interfaces
         block: |
           host    all     all             0.0.0.0/0                 md5
+      notify: restart postgres
 
     ### Run handlers
     - meta: flush_handlers
