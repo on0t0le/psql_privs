@@ -43,7 +43,7 @@
 
     - name: open acces with password
       blockinfile:
-        path: /etc/network/interfaces
+        path: /etc/postgresql/11/main/pg_hba.conf
         block: |
           host    all     all             0.0.0.0/0                 md5
       notify: restart postgres
