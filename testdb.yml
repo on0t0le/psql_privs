@@ -47,7 +47,7 @@
     - name: create a new database
       postgresql_db:
         login_host: '127.0.0.1'
-        name: "testdb"
+        name: "library"
 
     - name: Create user
       postgresql_user:
