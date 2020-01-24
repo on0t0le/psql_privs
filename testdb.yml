@@ -43,9 +43,9 @@
 
     - name: open acces with password
       blockinfile:
-      path: /etc/network/interfaces
-      block: |
-        host    all     all             0.0.0.0/0                 md5
+        path: /etc/network/interfaces
+        block: |
+          host    all     all             0.0.0.0/0                 md5
 
     ### Run handlers
     - meta: flush_handlers
