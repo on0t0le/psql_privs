@@ -54,13 +54,13 @@
     - name: create a new database
       postgresql_db:
         login_host: '127.0.0.1'
-        name: library
+        name: "{{ admin.db }}"
 
-    - name: Create user
+    - name: Create admin user
       postgresql_user:
         login_host: '127.0.0.1'
-        name: admin
-        password: 'Password1'
+        name: "{{ admin.username }}"
+        password: "{{ admin.pwd }}"
 
 
     - name: create roles
@@ -72,37 +72,37 @@
       - reader
       - writer 
 
-    - name: Create user Freeman
+    - name: Create reader user
       postgresql_user:
         login_host: '127.0.0.1'
-        name: freeman
-        password: 'Password2'
+        name: "{{ reader.username }}"
+        password: "{{ reader.pwd }}"
 
-    - name: Create user GMan
+    - name: Create writer user
       postgresql_user:
         login_host: '127.0.0.1'
-        name: gman
-        password: 'Password3'
+        name: "{{ writer.username }}"
+        password: "{{ writer.pwd }}"
 
     # Note that group role memberships apply cluster-wide and therefore are not
     # restricted to database "library" here.
-    - name: GRANT reader TO Freeman
+    - name: GRANT reader role TO reader user
       postgresql_privs:
         login_host: '127.0.0.1'
-        db: library
+        db: "{{ admin.db }}"
         type: group
         objs: reader
-        roles: freeman     
+        roles: "{{ reader.username }}"     
 
     # Note that group role memberships apply cluster-wide and therefore are not
     # restricted to database "library" here.
-    - name: GRANT reader TO GMan
+    - name: GRANT writer role TO writer user
       postgresql_privs:
         login_host: '127.0.0.1'
-        db: library
+        db: "{{ admin.db }}"
         type: group
         objs: writer
-        roles: gman     
+        roles: "{{ writer.username }}"       
 
     # "The key word PUBLIC indicates that the privileges are to be granted to all
     # roles, including those that might be created later. PUBLIC can be thought of
@@ -125,7 +125,7 @@
     - name: postgres | revoke default permissions      
       postgresql_privs:
         login_host: '127.0.0.1'
-        database: library
+        database: "{{ admin.db }}"
         privs: ALL
         roles: PUBLIC
         state: absent
@@ -136,7 +136,7 @@
     - name: postgres | revoke default schema permissions
       postgresql_privs:
         login_host: '127.0.0.1'
-        database: library
+        database: "{{ admin.db }}"
         obj: public
         privs: ALL
         roles: PUBLIC
@@ -146,27 +146,27 @@
     - name: GRANT ALL PRIVILEGES ON DATABASE library TO admin
       postgresql_privs:
         login_host: '127.0.0.1'
-        db: library
+        db: "{{ admin.db }}"
         privs: ALL
         type: database        
-        role: admin        
+        role: "{{ admin.username }}"        
 
     # The default public schema is owned by postgres, and since the PUBLIC
     # privileges are revoked we must grant them back to the owner
     - name: postgres | grant database owner public schema privileges      
       postgresql_privs:
         login_host: '127.0.0.1'
-        database: library
+        database: "{{ admin.db }}"
         obj: public
         privs: ALL
-        roles: admin
+        roles: "{{ admin.username }}"
         state: present
         type: schema      
 
     - name: postgres | grant connect privileges     
       postgresql_privs:
         login_host: '127.0.0.1'
-        database: library
+        database: "{{ admin.db }}"
         privs: CONNECT
         roles: "{{ item }}"
         state: present
@@ -178,7 +178,7 @@
     - name: postgres | grant usage privileges on default public schema
       postgresql_privs:
         login_host: '127.0.0.1'
-        database: library
+        database: "{{ admin.db }}"
         objs: public
         privs: USAGE
         roles: "{{ item }}"
@@ -191,7 +191,7 @@
     - name: Grant privs reader on database library
       postgresql_privs:
         login_host: '127.0.0.1'
-        database: library        
+        database: "{{ admin.db }}"        
         privs: SELECT          
         objs: ALL_IN_SCHEMA
         schema: public
@@ -200,7 +200,7 @@
     - name: Grant privs writer on database library
       postgresql_privs:
         login_host: '127.0.0.1'
-        database: library        
+        database: "{{ admin.db }}"        
         privs: SELECT,INSERT,UPDATE,DELETE
         objs: ALL_IN_SCHEMA
         schema: public
@@ -214,21 +214,21 @@
     - name: ALTER privs
       postgresql_privs:
         login_host: '127.0.0.1'
-        db: library
+        db: "{{ admin.db }}"
         schema: public
         objs: TABLES
         privs: SELECT
         type: default_privs
         role: reader
-        target_roles: admin
+        target_roles: "{{ admin.username }}"
     
     - name: ALTER privs
       postgresql_privs:
         login_host: '127.0.0.1'
-        db: library
+        db: "{{ admin.db }}"
         schema: public
         objs: TABLES
         privs: SELECT,INSERT,UPDATE,DELETE
         type: default_privs
         role: writer
-        target_roles: admin
+        target_roles: "{{ admin.username }}"
