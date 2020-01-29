@@ -69,8 +69,8 @@
         name: "{{ item }}"   
         role_attr_flags: NOLOGIN
       with_items:
-      - reader
-      - writer 
+      - rrole
+      - wrole
 
     - name: Create reader user
       postgresql_user:
@@ -91,7 +91,7 @@
         login_host: '127.0.0.1'
         db: "{{ admin.db }}"
         type: group
-        objs: reader
+        objs: rrole
         roles: "{{ reader.username }}"     
 
     # Note that group role memberships apply cluster-wide and therefore are not
@@ -101,7 +101,7 @@
         login_host: '127.0.0.1'
         db: "{{ admin.db }}"
         type: group
-        objs: writer
+        objs: wrole
         roles: "{{ writer.username }}"       
 
     # "The key word PUBLIC indicates that the privileges are to be granted to all
@@ -172,8 +172,8 @@
         state: present
         type: database    
       with_items:
-      - reader
-      - writer  
+      - rrole
+      - wrole  
 
     - name: postgres | grant usage privileges on default public schema
       postgresql_privs:
@@ -185,8 +185,8 @@
         state: present
         type: schema
       with_items:
-      - reader
-      - writer
+      - rrole
+      - wrole
 
     - name: Grant privs reader on database library
       postgresql_privs:
@@ -195,7 +195,7 @@
         privs: SELECT          
         objs: ALL_IN_SCHEMA
         schema: public
-        roles: reader
+        roles: rrole
 
     - name: Grant privs writer on database library
       postgresql_privs:
@@ -204,7 +204,7 @@
         privs: SELECT,INSERT,UPDATE,DELETE
         objs: ALL_IN_SCHEMA
         schema: public
-        roles: writer
+        roles: wrole
 
     # Available since version 2.8
     # ALTER DEFAULT PRIVILEGES FOR ROLE admin IN SCHEMA library GRANT SELECT ON TABLES TO reader
@@ -219,7 +219,7 @@
         objs: TABLES
         privs: SELECT
         type: default_privs
-        role: reader
+        role: rrole
         target_roles: "{{ admin.username }}"
     
     - name: ALTER privs
@@ -230,5 +230,5 @@
         objs: TABLES
         privs: SELECT,INSERT,UPDATE,DELETE
         type: default_privs
-        role: writer
+        role: wrole
         target_roles: "{{ admin.username }}"
